@@ -34,8 +34,8 @@ jobs:
       - name: Build for macOS/Linux
         if: runner.os == 'macOS' || runner.os == 'Linux'
         run: |
-          chmod +x build_unix.sh
-          ./build_unix.sh
+          chmod +x build.sh
+          ./build.sh
         shell: bash
 
       - name: Upload Artifact - Linux

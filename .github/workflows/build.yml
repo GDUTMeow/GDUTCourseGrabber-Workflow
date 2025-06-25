@@ -28,7 +28,7 @@ jobs:
 
       - name: Build for Windows
         if: runner.os == 'Windows'
-        run: .\pack.bat
+        run: .\scripts\pack.bat
         shell: cmd
 
       - name: Build for macOS/Linux

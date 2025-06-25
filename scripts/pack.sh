@@ -1,9 +1,6 @@
 #!/bin/bash
 set -e
 
-echo "Cleaning previous builds..."
-mkdir -p dist/
-
 echo "Running PyInstaller..."
 pdm run pyinstaller \
     --name GDUTCourseGrabber \

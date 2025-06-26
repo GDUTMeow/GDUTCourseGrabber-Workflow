@@ -49,14 +49,17 @@ jobs:
             os: ubuntu-latest-arm64
             cpython_triple: aarch64-unknown-linux-gnu
             artifact_suffix: Linux-arm64-gnu
-          - name: Linux x86_64 (MUSL)
-            os: ubuntu-latest # x86_64
-            cpython_triple: x86_64-unknown-linux-musl
-            artifact_suffix: Linux-x64-musl
-          - name: Linux aarch64 (MUSL)
-            os: ubuntu-latest-arm64
-            cpython_triple: aarch64-unknown-linux-musl
-            artifact_suffix: Linux-arm64-musl
+
+          # pyinstaller does not support MUSL builds on Linux
+          # - name: Linux x86_64 (MUSL)
+          #   os: ubuntu-latest # x86_64
+          #   cpython_triple: x86_64-unknown-linux-musl
+          #   artifact_suffix: Linux-x64-musl
+          # - name: Linux aarch64 (MUSL)
+          #   os: ubuntu-latest-arm64
+          #   cpython_triple: aarch64-unknown-linux-musl
+          #   artifact_suffix: Linux-arm64-musl
+          
           # macOS
           - name: macOS x86_64
             os: macos-13
@@ -98,6 +101,10 @@ jobs:
         env:
           CPYTHON_TRIPLE: ${{ matrix.cpython_triple }}
         run: |
+          if [[ "$CPYTHON_TRIPLE" == *"musl"* ]]; then
+            sudo apt-get update
+            sudo apt-get install -y musl-dev
+          fi
           echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
           chmod +x ./scripts/pack.sh
           ./scripts/pack.sh

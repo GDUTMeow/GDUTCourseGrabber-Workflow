@@ -10,24 +10,15 @@ on:
         type: string
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest, ubuntu-24.04-arm, windows-11-arm, macos-13]
-    runs-on: ${{ matrix.os }}
+  determine_version:
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.version_info.outputs.app_version }}
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Checkout code (to get SHA)
+        uses: actions/checkout@v3
         with:
-          python-version: "3.12"
-
-      - name: Install PDM
-        run: pip install pdm
-
-      - name: Install dependencies
-        run: pdm install --no-self
+          fetch-depth: 0
 
       - name: Determine Version
         id: version_info
@@ -42,9 +33,28 @@ jobs:
           fi
 
           echo "Determined App Version: $APP_VERSION"
-          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
-          # For use in other steps via outputs, if needed later:
-          # echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT # 设置 Job 输出
+
+  build_app:
+    needs: determine_version
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest, ubuntu-24.04-arm, windows-11-arm, macos-13]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install PDM
+        run: pip install pdm
+
+      - name: Install dependencies
+        run: pdm install --no-self
 
       - name: Build for Windows
         if: runner.os == 'Windows'
@@ -62,19 +72,19 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: GDUTCourseGrabber-${{ env.APP_VERSION }}-Linux-${{ runner.arch }}
-          path: dist/GDUTCourseGrabber_App/*
+          name: GDUTCourseGrabber-${{ needs.determine_version.outputs.app_version }}-Linux-${{ runner.arch }}
+          path: dist/*
 
       - name: Upload Artifact - macOS
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: GDUTCourseGrabber-${{ env.APP_VERSION }}-macOS-${{ runner.arch }}
-          path: dist/GDUTCourseGrabber_App/*
+          name: GDUTCourseGrabber-${{ needs.determine_version.outputs.app_version }}-macOS-${{ runner.arch }}
+          path: dist/*
 
       - name: Upload Artifact - Windows
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: GDUTCourseGrabber-${{ env.APP_VERSION }}-Windows-${{ runner.arch }}
+          name: GDUTCourseGrabber-${{ needs.determine_version.outputs.app_version }}-Windows-${{ runner.arch }}
           path: dist/*

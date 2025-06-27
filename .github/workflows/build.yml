@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version_override:
-        description: "构建版本号（例如 v3.0.0），如果不提供则使用 Git SHA 的前 7 位"
+        description: "构建版本号（例如 v3.0.0），否则使用 Git SHA 的前 7 位"
         required: false
         default: ""
         type: string

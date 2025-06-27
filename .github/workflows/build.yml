@@ -47,7 +47,7 @@ jobs:
             artifact_suffix: Linux-x64-gnu
             use_emulator: false
           - name: Linux aarch64 (GNU)
-            os: ubuntu-latest # 主机使用标准 x86 runner
+            os: ubuntu-latest
             cpython_triple: aarch64-unknown-linux-gnu
             artifact_suffix: Linux-arm64-gnu
             use_emulator: true
@@ -66,11 +66,6 @@ jobs:
             cpython_triple: x86_64-pc-windows-msvc
             artifact_suffix: Windows-x64
             use_emulator: false
-          - name: Windows aarch64
-            os: windows-latest-arm64
-            cpython_triple: aarch64-pc-windows-msvc
-            artifact_suffix: Windows-arm64
-            use_emulator: false
 
     name: Build for ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -84,43 +79,48 @@ jobs:
         with:
           arch: aarch64
           distro: ubuntu24.04
-
           githubToken: ${{ github.token }}
 
-          env:
-            CPYTHON_TRIPLE=${{ matrix.cpython_triple }}
+          env: |
+            CPYTHON_TRIPLE: ${{ matrix.cpython_triple }}
 
-          # 在容器构建时安装依赖。这些依赖会被缓存。
-          # !! 注意：请根据你的 pack.sh 脚本所需，修改这里的依赖列表 !!
           install: |
             apt-get update -q -y
             apt-get install -q -y python3 python3-pip build-essential git
 
-          # 在容器中执行的命令
           run: |
             echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
             chmod +x ./scripts/pack.sh
             ./scripts/pack.sh
 
-      - name: Build on native runner
-        if: matrix.use_emulator == false
+      - name: Set up MSYS2 for Windows build
+        if: matrix.use_emulator == false && runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+
+      - name: Build on Windows (native)
+        if: matrix.use_emulator == false && runner.os == 'Windows'
         env:
           CPYTHON_TRIPLE: ${{ matrix.cpython_triple }}
         run: |
-          # Windows
-          if [ "${{ runner.os }}" == "Windows" ]; then
-            echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
-            powershell -c "Install-Module -Name Msys2 -Force -Scope CurrentUser"
-            C:\msys64\ucrt64\bin\bash.exe -c "chmod +x ./scripts/pack.sh && ./scripts/pack.sh"
-          else
-            if [[ "$CPYTHON_TRIPLE" == *"musl"* ]]; then
-              sudo apt-get update
-              sudo apt-get install -y musl-dev
-            fi
-            echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
-            chmod +x ./scripts/pack.sh
-            ./scripts/pack.sh
+          echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
+          chmod +x ./scripts/pack.sh
+          ./scripts/pack.sh
+        shell: msys2 {0}
+
+      - name: Build on macOS/Linux (native)
+        if: matrix.use_emulator == false && (runner.os == 'macOS' || runner.os == 'Linux')
+        env:
+          CPYTHON_TRIPLE: ${{ matrix.cpython_triple }}
+        run: |
+          if [[ "$CPYTHON_TRIPLE" == *"musl"* ]]; then
+            sudo apt-get update
+            sudo apt-get install -y musl-dev
           fi
+          echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
+          chmod +x ./scripts/pack.sh
+          ./scripts/pack.sh
         shell: bash
 
       - name: Upload Artifact

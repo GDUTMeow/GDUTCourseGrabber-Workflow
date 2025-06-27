@@ -70,17 +70,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Set up msys
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
 
       - name: Set up Python
         if: runner.os != 'linux' && runner.os != 'macOS'
         uses: actions/setup-python@v4
         with:
           python-version: "3.12"
+      - name: Set up msys
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
 
       - name: Build for Windows
         if: runner.os == 'Windows'

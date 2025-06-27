@@ -85,11 +85,9 @@ jobs:
           arch: aarch64
           distro: ubuntu24.04
 
-          # 强烈建议使用，通过GitHub Packages缓存容器镜像以加速构建
           githubToken: ${{ github.token }}
 
-          # 传递环境变量到容器中
-          env: |
+          env:
             CPYTHON_TRIPLE=${{ matrix.cpython_triple }}
 
           # 在容器构建时安装依赖。这些依赖会被缓存。

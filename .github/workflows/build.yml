@@ -59,7 +59,7 @@ jobs:
           #   os: ubuntu-latest-arm64
           #   cpython_triple: aarch64-unknown-linux-musl
           #   artifact_suffix: Linux-arm64-musl
-          
+
           # macOS
           - name: macOS x86_64
             os: macos-13
@@ -70,10 +70,12 @@ jobs:
             cpython_triple: aarch64-apple-darwin
             artifact_suffix: macOS-arm64
           - name: Windows x86_64
-            os: windows-latest # x86_64
+            os: windows-latest
+            cpython_triple: x86_64-pc-windows-msvc
             artifact_suffix: Windows-x64
           - name: Windows aarch64
             os: windows-latest-arm64
+            cpython_triple: aarch64-pc-windows-msvc
             artifact_suffix: Windows-arm64
 
     runs-on: ${{ matrix.os }}
@@ -81,20 +83,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python (for PDM itself, not the bundled one)
-        if: runner.os != 'Windows'
+      - name: Set up msys
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+
+      - name: Set up Python
+        if: runner.os != 'linux' && runner.os != 'macOS'
         uses: actions/setup-python@v4
         with:
           python-version: "3.12"
 
-      - name: Install PDM
-        if: runner.os != 'Windows'
-        run: pip install pdm
+      # - name: Install PDM
+      #   if: runner.os == 'Windows'
+      #   uses: pdm-project/setup-pdm@v4.4
 
-      - name: Build for Windows
+      - name: Build for Windows X64
         if: runner.os == 'Windows'
-        run: .\scripts\pack.bat
-        shell: cmd
+        env:
+          CPYTHON_TRIPLE: x86_64-${{ matrix.cpython_triple }}
+        run: |
+          echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
+          ./scripts/pack.sh
+        shell: msys2 {0}
 
       - name: Build for macOS/Linux
         if: runner.os == 'macOS' || runner.os == 'Linux'
@@ -106,7 +117,6 @@ jobs:
             sudo apt-get install -y musl-dev
           fi
           echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
-          chmod +x ./scripts/pack.sh
           ./scripts/pack.sh
         shell: bash
 

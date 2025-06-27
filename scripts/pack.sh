@@ -10,6 +10,10 @@ curl -sL $CPYTHON_BASE_URL/$CPYTHON_BUILD_DATE/cpython-$CPYTHON_VERSION+$CPYTHON
 
 export PATH="$(pwd)/python/bin:$PATH"
 
+echo whereis python
+echo "Python version:"
+python --version
+
 echo "Installing PDM..."
 pip install pdm
 

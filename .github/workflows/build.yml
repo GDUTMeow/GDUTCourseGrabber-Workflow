@@ -49,18 +49,6 @@ jobs:
             os: ubuntu-latest-arm64
             cpython_triple: aarch64-unknown-linux-gnu
             artifact_suffix: Linux-arm64-gnu
-
-          # pyinstaller does not support MUSL builds on Linux
-          # - name: Linux x86_64 (MUSL)
-          #   os: ubuntu-latest # x86_64
-          #   cpython_triple: x86_64-unknown-linux-musl
-          #   artifact_suffix: Linux-x64-musl
-          # - name: Linux aarch64 (MUSL)
-          #   os: ubuntu-latest-arm64
-          #   cpython_triple: aarch64-unknown-linux-musl
-          #   artifact_suffix: Linux-arm64-musl
-
-          # macOS
           - name: macOS x86_64
             os: macos-13
             cpython_triple: x86_64-apple-darwin
@@ -82,8 +70,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
       - name: Set up msys
+        if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
@@ -94,14 +82,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      # - name: Install PDM
-      #   if: runner.os == 'Windows'
-      #   uses: pdm-project/setup-pdm@v4.4
-
-      - name: Build for Windows X64
+      - name: Build for Windows
         if: runner.os == 'Windows'
         env:
-          CPYTHON_TRIPLE: x86_64-${{ matrix.cpython_triple }}
+          CPYTHON_TRIPLE: ${{ matrix.cpython_triple }}
         run: |
           echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
           ./scripts/pack.sh

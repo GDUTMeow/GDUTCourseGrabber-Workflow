@@ -24,10 +24,10 @@ echo "Installing PDM..."
 python -m pip install pdm
 
 echo "Installing packages..."
-pdm install --no-self --no-editable --prod --with pack
+python -m pdm install --no-self --no-editable --prod --with pack
 
 echo "Running PyInstaller..."
-pdm run pyinstaller \
+python -m pdm run pyinstaller \
     --name GDUTCourseGrabber \
     --noconfirm \
     --clean \

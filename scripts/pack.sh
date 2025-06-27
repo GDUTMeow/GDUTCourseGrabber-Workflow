@@ -21,7 +21,7 @@ echo -n "Python version: "
 python --version
 
 echo "Installing PDM..."
-pip install pdm
+python -m pip install pdm
 
 echo "Installing packages..."
 pdm install --no-self --no-editable --prod --with pack

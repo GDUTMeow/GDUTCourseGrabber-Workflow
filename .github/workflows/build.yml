@@ -35,130 +35,124 @@ jobs:
           echo "Determined App Version: $APP_VERSION"
           echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
 
-build_app:
-  needs: determine_version
-  # 注意：这里 runs-on 仍然可以是 ubuntu-latest 或 ubuntu-22.04，
-  # 因为我们将在这个 runner 上运行 Docker 容器。
-  runs-on: ${{ matrix.os }}
-  strategy:
-    fail-fast: false
-    matrix:
-      include:
-        # Linux x86_64 Manylinux Build
-        - name: Linux x86_64 (Manylinux) # 修改名称以反映构建类型
-          os: ubuntu-latest # 使用较新的 runner 来运行 Docker
-          cpython_triple: x86_64-unknown-linux-gnu
-          artifact_suffix: Linux-x64-manylinux
-          build_method: manylinux # 添加一个字段来标识构建方法
+  build_app:
+    needs: determine_version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64 (Manylinux)
+            os: ubuntu-latest
+            cpython_triple: x86_64-unknown-linux-gnu
+            artifact_suffix: Linux-x64-manylinux
+            build_method: manylinux
 
-        # Linux aarch64 (GNU) Build (可能需要调整，如果你想让它也更兼容)
-        # 保持原样，但如果需要向下兼容，可能需要模拟更旧的系统或使用 manylinux for aarch64
-        - name: Linux aarch64 (GNU)
-          os: ubuntu-latest
-          cpython_triple: aarch64-unknown-linux-gnu
-          artifact_suffix: Linux-arm64-gnu
-          use_emulator: true
-          build_method: standard # 或者其他标识
+          - name: Linux aarch64 (GNU)
+            os: ubuntu-latest
+            cpython_triple: aarch64-unknown-linux-gnu
+            artifact_suffix: Linux-arm64-gnu
+            use_emulator: true
+            build_method: standard
 
-        # macOS x86_64 Build
-        - name: macOS x86_64
-          os: macos-13
-          cpython_triple: x86_64-apple-darwin
-          artifact_suffix: macOS-x64
-          use_emulator: false
-          build_method: standard
+          # macOS x86_64 Build
+          - name: macOS x86_64
+            os: macos-13
+            cpython_triple: x86_64-apple-darwin
+            artifact_suffix: macOS-x64
+            use_emulator: false
+            build_method: standard
 
-        # macOS aarch64 Build
-        - name: macOS aarch64
-          os: macos-14
-          cpython_triple: aarch64-apple-darwin
-          artifact_suffix: macOS-arm64
-          use_emulator: false
-          build_method: standard
+          # macOS aarch64 Build
+          - name: macOS aarch64
+            os: macos-14
+            cpython_triple: aarch64-apple-darwin
+            artifact_suffix: macOS-arm64
+            use_emulator: false
+            build_method: standard
 
-        # Windows x86_64 Build
-        - name: Windows x86_64
-          os: windows-latest
-          cpython_triple: x86_64-pc-windows-msvc
-          artifact_suffix: Windows-x64
-          use_emulator: false
-          build_method: standard
+          # Windows x86_64 Build
+          - name: Windows x86_64
+            os: windows-latest
+            cpython_triple: x86_64-pc-windows-msvc
+            artifact_suffix: Windows-x64
+            use_emulator: false
+            build_method: standard
 
-  name: Build for ${{ matrix.name }}
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    name: Build for ${{ matrix.name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Make pack script executable
-      run: chmod +x ./scripts/pack.sh
+      - name: Make pack script executable
+        run: chmod +x ./scripts/pack.sh
 
-    - name: Build Linux x86_64 in Manylinux Container
-      # 仅当 build_method 是 manylinux 时运行此步骤
-      if: matrix.build_method == 'manylinux'
-      run: |
-        MANYLINUX_IMAGE="quay.io/pypa/manylinux2014:latest"
+      - name: Build Linux x86_64 in Manylinux Container
+        if: matrix.build_method == 'manylinux'
+        run: |
+          MANYLINUX_IMAGE="quay.io/pypa/manylinux2014:latest"
 
-        echo "Building in $MANYLINUX_IMAGE container..."
+          echo "Building in $MANYLINUX_IMAGE container..."
 
-        docker run \
-          --rm \
-          -v ${{ github.workspace }}:/ws \
-          -w /ws \
-          -e CPYTHON_TRIPLE=${{ matrix.cpython_triple }} \
-          $MANYLINUX_IMAGE \
-          /bin/bash -c "ldd --version && ./scripts/pack.sh"
+          docker run \
+            --rm \
+            -v ${{ github.workspace }}:/ws \
+            -w /ws \
+            -e CPYTHON_TRIPLE=${{ matrix.cpython_triple }} \
+            $MANYLINUX_IMAGE \
+            /bin/bash -c "ldd --version && ./scripts/pack.sh"
 
-    - name: Build on emulated arch
-      if: matrix.use_emulator == true && matrix.build_method == 'standard'
-      uses: uraimo/run-on-arch-action@v3
-      with:
-        arch: aarch64
-        distro: ubuntu24.04
-        githubToken: ${{ github.token }}
-        env: |
+      - name: Build on emulated arch
+        if: matrix.use_emulator == true && matrix.build_method == 'standard'
+        uses: uraimo/run-on-arch-action@v3
+        with:
+          arch: aarch64
+          distro: ubuntu24.04
+          githubToken: ${{ github.token }}
+          env: |
+            CPYTHON_TRIPLE: ${{ matrix.cpython_triple }}
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y python3 python3-pip build-essential git curl
+          run: |
+            echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
+            chmod +x ./scripts/pack.sh
+            ./scripts/pack.sh
+
+      - name: Set up MSYS2 for Windows build
+        if: runner.os == 'Windows' && matrix.build_method == 'standard'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+
+      - name: Build on Windows
+        if: runner.os == 'Windows' && matrix.build_method == 'standard'
+        env:
           CPYTHON_TRIPLE: ${{ matrix.cpython_triple }}
-        install: |
-          apt-get update -q -y
-          apt-get install -q -y python3 python3-pip build-essential git curl
         run: |
           echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
           chmod +x ./scripts/pack.sh
           ./scripts/pack.sh
+        shell: msys2 {0}
 
-    - name: Set up MSYS2 for Windows build
-      if: runner.os == 'Windows' && matrix.build_method == 'standard'
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: UCRT64
+      - name: Build on macOS
+        if: runner.os == 'macOS' && matrix.build_method == 'standard'
+        env:
+          CPYTHON_TRIPLE: ${{ matrix.cpython_triple }}
+        run: |
+          if [[ "$CPYTHON_TRIPLE" == *"musl"* ]]; then
+            echo "Warning: musl build is for Linux, skipping musl-dev install on macOS."
+          fi
+          echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
+          chmod +x ./scripts/pack.sh
+          ./scripts/pack.sh
+        shell: bash
 
-    - name: Build on Windows
-      if: runner.os == 'Windows' && matrix.build_method == 'standard'
-      env:
-        CPYTHON_TRIPLE: ${{ matrix.cpython_triple }}
-      run: |
-        echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
-        chmod +x ./scripts/pack.sh
-        ./scripts/pack.sh
-      shell: msys2 {0}
-
-    - name: Build on macOS
-      if: runner.os == 'macOS' && matrix.build_method == 'standard'
-      env:
-        CPYTHON_TRIPLE: ${{ matrix.cpython_triple }}
-      run: |
-        if [[ "$CPYTHON_TRIPLE" == *"musl"* ]]; then
-          echo "Warning: musl build is for Linux, skipping musl-dev install on macOS."
-        fi
-        echo "Building with CPYTHON_TRIPLE=${CPYTHON_TRIPLE}"
-        chmod +x ./scripts/pack.sh
-        ./scripts/pack.sh
-      shell: bash
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: GDUTCourseGrabber-${{ needs.determine_version.outputs.app_version }}-${{ matrix.artifact_suffix }}
-        path: dist/*
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GDUTCourseGrabber-${{ needs.determine_version.outputs.app_version }}-${{ matrix.artifact_suffix }}
+          path: dist/*
 
   docker_release:
     needs: determine_version
